@@ -1,8 +1,8 @@
 import React, { Component } from 'react'
-import { Text, View, ScrollView, StyleSheet, Picker, Switch, Button, Modal } from 'react-native'
+import { Text, View, ScrollView, StyleSheet, Picker, Switch, Button, Alert } from 'react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import * as Animatable from 'react-native-animatable'
-import { Alert } from 'react-native'
+import * as Notifications from 'expo-notifications'
 
 class Reservation extends Component {
     constructor(props) {
@@ -38,6 +38,43 @@ class Reservation extends Component {
             showCalendar: false,
             showModal: false
         })
+    }
+
+    //This function waits to actually send the notification to first check if we have permissions on the device to do so.
+    //So we create the notification we want to send, then check permissions and actually send it if we are allowed.
+    async presentLocalNotification(date) {
+        function sendNotification() {
+            //By default apps do not show alerts for notifications.
+            //We first set this to true:
+            Notifications.setNotificationHandler({
+                handleNotification: async () => ({
+                    shouldShowAlert: true
+                })
+            })
+
+            //Now we create the alert to be shown.. or is it just the notification
+            Notifications.scheduleNotificationAsync({
+                content: {
+                    title: 'Your Campsite Reservation Search',
+                    body: `Search for ${date} requested`
+                },
+                //sets the alert/notification to be sent immediately
+                trigger: null
+            })
+        }
+
+        //check to see if this app has permissions saved via async call locally, not to the device itself but to app storage:
+        let permissions = await Notifications.getPermissionsAsync()
+
+        //If this app doesn't have persmissions stored, request it from the device to be saved/stored
+        if (!permissions.granted) {
+            permissions = await Notifications.requestPermissionsAsync()
+        }
+
+        //finally send if we are allowed:
+        if (permissions.granted) {
+            sendNotification()
+        }
     }
 
     render() {
@@ -102,11 +139,17 @@ class Reservation extends Component {
                                 [
                                     {
                                         text: 'Cancel',
-                                        onPress: () => console.log('Not Deleted'),
+                                        onPress: () => {
+                                            console.log('Not Deleted')
+                                            this.resetForm()
+                                        },
                                     },
                                     {
                                         text: 'OK',
-                                        onPress: () => console.log('test')
+                                        onPress: () => {
+                                            this.presentLocalNotification(this.state.date.toLocaleDateString('en-US'))
+                                            this.resetForm()
+                                        }
                                     }
                                 ],
                                 { cancelable: false }
